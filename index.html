@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Space Scene</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-shadow: 0 0 5px #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Scroll to rotate the scene</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, planet, moon, stars;
+        let targetRotationX = 0, targetRotationY = 0;
+        let currentRotationX = 0, currentRotationY = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Planet
+            const planetGeometry = new THREE.SphereGeometry(5, 64, 64);
+            const planetTexture = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Earth_Western_Hemisphere_transparent_background.png/1024px-Earth_Western_Hemisphere_transparent_background.png');
+            const planetMaterial = new THREE.MeshPhongMaterial({ 
+                map: planetTexture,
+                bumpMap: planetTexture,
+                bumpScale: 0.05,
+                specularMap: planetTexture,
+                specular: new THREE.Color('grey')
+            });
+            planet = new THREE.Mesh(planetGeometry, planetMaterial);
+            scene.add(planet);
+
+            // Atmosphere
+            const atmosphereGeometry = new THREE.SphereGeometry(5.1, 64, 64);
+            const atmosphereMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4ca6ff,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphere);
+
+            // Moon
+            const moonGeometry = new THREE.SphereGeometry(1, 32, 32);
+            const moonTexture = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1024px-FullMoon2010.jpg');
+            const moonMaterial = new THREE.MeshPhongMaterial({ map: moonTexture });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(10, 0, 0);
+            scene.add(moon);
+
+            // Stars
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, sizeAttenuation: true });
+            const starsVertices = [];
+            for (let i = 0; i < 15000; i++) {
+                const x = THREE.MathUtils.randFloatSpread(2000);
+                const y = THREE.MathUtils.randFloatSpread(2000);
+                const z = THREE.MathUtils.randFloatSpread(2000);
+                starsVertices.push(x, y, z);
+            }
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            camera.position.z = 20;
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('wheel', onMouseWheel, false);
+            window.addEventListener('touchmove', onTouchMove, false);
+        }
+
+        function onMouseWheel(event) {
+            targetRotationY -= event.deltaY * 0.001;
+            targetRotationX -= event.deltaX * 0.001;
+        }
+
+        function onTouchMove(event) {
+            const touch = event.touches[0];
+            const deltaY = touch.pageY - (event.target.prevTouch ? event.target.prevTouch.pageY : touch.pageY);
+            const deltaX = touch.pageX - (event.target.prevTouch ? event.target.prevTouch.pageX : touch.pageX);
+            
+            targetRotationY -= deltaY * 0.002;
+            targetRotationX -= deltaX * 0.002;
+
+            event.target.prevTouch = touch;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth rotation
+            currentRotationX += (targetRotationX - currentRotationX) * 0.05;
+            currentRotationY += (targetRotationY - currentRotationY) * 0.05;
+
+            scene.rotation.y = currentRotationX;
+            scene.rotation.x = currentRotationY;
+
+            // Rotate planet and moon
+            planet.rotation.y += 0.005;
+            moon.rotation.y += 0.01;
+            moon.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.02);
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
